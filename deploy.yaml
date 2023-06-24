@@ -1,0 +1,71 @@
+version: '3'
+
+services:
+  identityDB:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+    - identityDB:/var/lib/mysql
+    networks:
+      - identityNet
+      
+  identityInit:
+    image: identityinit
+    environment:
+      - DATABASE_URL=identityDB
+    networks:
+      - identityNet
+
+  identity:
+    image: identity
+    environment:
+      - DATABASE_URL=identityDB
+    ports:
+    - 5000:5000
+    networks:
+       - identityNet
+
+  storeDB:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    ports:
+    - 3306:3306
+    volumes:
+    - storeDB:/var/lib/mysql
+    networks:
+      - storeNet
+      
+  storeInit:
+    image: storeinit
+    environment:
+      - DATABASE_URL=storeDB
+    networks:
+      - storeNet
+
+  owner:
+    image: owner
+    environment:
+      - DATABASE_URL=storeDB
+    ports:
+    - 5001:5000
+    networks:
+       - storeNet
+
+  customer:
+    image: customer
+    environment:
+      - DATABASE_URL=storeDB
+    ports:
+    - 5002:5000
+    networks:
+       - storeNet
+
+volumes:
+  identityDB:
+  storeDB:
+
+networks:
+  identityNet:
+  storeNet:
