@@ -1,0 +1,10 @@
+Flask
+flask_sqlalchemy
+flask_migrate
+flask_script
+flask_jwt_extended
+#cryptography
+sqlalchemy
+sqlalchemy_utils
+PyMySQL
+pyspark

@@ -3,7 +3,7 @@ FROM python:3
 RUN mkdir -p /opt/src/courier
 WORKDIR /opt/src/courier
 
-COPY ./requirements.txt ./requirements.txt
+COPY ./requirements1.txt ./requirements.txt
 
 RUN pip install -r ./requirements.txt
 

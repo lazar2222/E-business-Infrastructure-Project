@@ -3,7 +3,7 @@ if (-not (Test-Path -Path ".venv"))
     python -m venv ./.venv
 }
 ./.venv/Scripts/Activate.ps1
-pip install -r requirements.txt
+pip install -r requirements1.txt
 
 docker build -f identity.dockerfile --tag identity:latest .
 docker build -f identityinit.dockerfile --tag identityinit:latest .

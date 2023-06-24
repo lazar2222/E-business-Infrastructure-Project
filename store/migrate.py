@@ -35,7 +35,7 @@ while(True):
             sys.exit(0)
     except Exception as ex:
         print('Waiting')
-        #print(ex)
+        print(ex)
         #if os.path.exists('migrations'):
             #shutil.rmtree('migrations')
         time.sleep(1)
