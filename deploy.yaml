@@ -57,6 +57,7 @@ services:
     environment:
       - DATABASE_URL=storeDB
       - USE_ETH=True
+      - ETH_URL=http://127.0.0.1:8545
     ports:
       - 5002:5000
     networks:

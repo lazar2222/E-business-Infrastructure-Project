@@ -33,10 +33,10 @@ contract Delivery
         _;
     }
 
-    constructor(address payable _customer, address payable _owner, uint _value)
+    constructor(address payable _customer, uint _value)
     {
         customer = _customer;
-        owner = _owner;
+        owner = payable(msg.sender);
         courier = payable(address(0));
         value = _value;
         state = State.CREATED;

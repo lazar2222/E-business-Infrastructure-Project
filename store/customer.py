@@ -7,6 +7,8 @@ from flask import Response
 from flask_jwt_extended import JWTManager
 from flask_jwt_extended import get_jwt_identity
 from sqlalchemy import and_
+from web3 import Web3
+from web3 import HTTPProvider
 
 from config import Config
 
@@ -19,6 +21,9 @@ application.config.from_object(Config)
 
 database.init_app(application)
 jwt = JWTManager(application)
+
+if Config.USE_ETH:
+    w3 = Web3(HTTPProvider(Config.ETH_URL))
 
 @application.route('/search', methods = ['GET'])
 @roleCheck('customer')
@@ -68,22 +73,39 @@ def order():
         jobs.append((productObj, quantity))
         productNo += 1
 
-    email = get_jwt_identity()
     price = 0
+    for job in jobs:
+        product, quantity = job
+        price += product.price * quantity
+
+    cA = '0'
+    if Config.USE_ETH:
+        if 'address' not in request.json:
+            return errorMessage('Field address is missing.')
+        address = request.json['address']
+        if not w3.is_address(address):
+            return errorMessage('Invalid address.')
+        with open('Delivery.abi', 'r') as file:
+            abi = file.read()
+        with open('Delivery.bin', 'r') as file:
+            bin = file.read()
+        contract = w3.eth.contract( bytecode = bin, abi = abi)
+        transaction = contract.constructor(address, price).build_transaction({'from': Config.OWNER_PUBLIC, 'nonce': w3.eth.get_transaction_count (Config.OWNER_PUBLIC), 'gasPrice': 21000})
+        signed = w3.eth.account.sign_transaction(transaction, Config.OWNER_PRIVATE)
+        transaction = w3.eth.send_raw_transaction(signed.rawTransaction)
+        receipt = w3.eth.wait_for_transaction_receipt(transaction)
+        cA = receipt.contractAddress
+
+    email = get_jwt_identity()
     timestamp = time.time()
-    order = Order(price, 'CREATED', timestamp, email)
+    order = Order(price, 'CREATED', timestamp, email, cA)
     database.session.add(order)
     database.session.commit()
 
     for job in jobs:
         product, quantity = job
-        price += product.price * quantity
         po = ProductOrder(product.id, order.id, quantity)
         database.session.add(po)
-
-    database.session.commit()
-
-    order.price = price
 
     database.session.commit()
 
