@@ -47,7 +47,7 @@ contract Delivery
         state = State.PAID;
     }
 
-    function assingCourier(address payable _courier) external onlyInState(State.PAID)
+    function assignCourier(address payable _courier) external onlyInState(State.PAID)
     {
         courier = _courier;
         state = State.COURIER_ASSIGNED;

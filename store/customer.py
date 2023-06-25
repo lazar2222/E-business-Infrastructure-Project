@@ -9,6 +9,7 @@ from flask_jwt_extended import get_jwt_identity
 from sqlalchemy import and_
 from web3 import Web3
 from web3 import HTTPProvider
+from web3 import Account
 
 from config import Config
 
@@ -80,7 +81,7 @@ def order():
 
     cA = '0'
     if Config.USE_ETH:
-        if 'address' not in request.json:
+        if 'address' not in request.json or len(request.json['address']) == 0:
             return errorMessage('Field address is missing.')
         address = request.json['address']
         if not w3.is_address(address):
@@ -90,7 +91,7 @@ def order():
         with open('Delivery.bin', 'r') as file:
             bin = file.read()
         contract = w3.eth.contract( bytecode = bin, abi = abi)
-        transaction = contract.constructor(address, price).build_transaction({'from': Config.OWNER_PUBLIC, 'nonce': w3.eth.get_transaction_count (Config.OWNER_PUBLIC), 'gasPrice': 21000})
+        transaction = contract.constructor(address, int(price*100)).build_transaction({'from': Config.OWNER_PUBLIC, 'nonce': w3.eth.get_transaction_count (Config.OWNER_PUBLIC), 'gasPrice': 21000})
         signed = w3.eth.account.sign_transaction(transaction, Config.OWNER_PRIVATE)
         transaction = w3.eth.send_raw_transaction(signed.rawTransaction)
         receipt = w3.eth.wait_for_transaction_receipt(transaction)
@@ -132,8 +133,50 @@ def delivered():
     if order.customer != get_jwt_identity():
         return Response(json.dumps({'msg': 'Missing Authorization Header'}), 401)
     
+    if Config.USE_ETH:
+        if 'keys' not in request.json:
+            return errorMessage('Missing keys.')
+        if 'passphrase' not in request.json or len(request.json['passphrase']) == 0:
+            return errorMessage('Missing passphrase.')
+        keys = request.json['keys']
+        passphrase = request.json['passphrase']
+        address = w3.to_checksum_address(keys['address'])
+        private_key = Account.decrypt(keys, passphrase).hex()
+        with open('Delivery.abi', 'r') as file:
+            abi = file.read()
+        contract = w3.eth.contract(address = order.contractAddress, abi = abi)
+        contract.functions.delivered().transact({'from': address})
+
     order.status = 'COMPLETE'
     database.session.commit()
+
+    return Response(None, 200)
+
+@application.route('/pay', methods = ['POST'])
+@roleCheck('customer')
+def pay():
+    if 'id' not in request.json:
+        return errorMessage('Missing order id.')    
+    id = request.json['id']
+    order = Order.query.filter(Order.id == id).first()
+    if order == None:
+        return errorMessage('Invalid order id.')
+    if order.customer != get_jwt_identity():
+        return Response(json.dumps({'msg': 'Missing Authorization Header'}), 401)
+    
+    if Config.USE_ETH:
+        if 'keys' not in request.json:
+            return errorMessage('Missing keys.')
+        if 'passphrase' not in request.json or len(request.json['passphrase']) == 0:
+            return errorMessage('Missing passphrase.')
+        keys = request.json['keys']
+        passphrase = request.json['passphrase']
+        address = w3.to_checksum_address(keys['address'])
+        private_key = Account.decrypt(keys, passphrase).hex()
+        with open('Delivery.abi', 'r') as file:
+            abi = file.read()
+        contract = w3.eth.contract(address = order.contractAddress, abi = abi)
+        contract.functions.pay().transact({'from': address, 'value': int(order.price*100)})
 
     return Response(None, 200)
 

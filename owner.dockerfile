@@ -1,4 +1,6 @@
-FROM bde2020/spark-python-template:3.3.0-hadoop3.3
+FROM bde2020/spark-submit:3.3.0-hadoop3.3
+
+COPY template.sh /
 
 RUN apk add build-base
 RUN apk add python3-dev

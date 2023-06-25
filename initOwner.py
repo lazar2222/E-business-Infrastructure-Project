@@ -1,4 +1,5 @@
 import os
+import time
 from web3 import Web3
 from web3 import HTTPProvider
 
@@ -17,6 +18,7 @@ else:
     with open('public.key', 'r') as file:
         public_key = file.read()
 
+time.sleep(5)
 
 address = w3.to_checksum_address(public_key)
 sender = w3.eth.accounts[0]
