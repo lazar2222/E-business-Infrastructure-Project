@@ -47,18 +47,20 @@ class Category(database.Model):
         self.name = name
 
 class Order(database.Model):
-    id        = database.Column(database.Integer, primary_key = True) 
-    status    = database.Column(database.String(256), nullable = False)
-    timestamp = database.Column(database.Integer, nullable = False)
-    price     = database.Column(database.Double, nullable = False)
-    customer  = database.Column(database.String(256), nullable = False)
-    courier   = database.Column(database.String(256))
+    id              = database.Column(database.Integer, primary_key = True) 
+    status          = database.Column(database.String(256), nullable = False)
+    timestamp       = database.Column(database.Integer, nullable = False)
+    price           = database.Column(database.Double, nullable = False)
+    customer        = database.Column(database.String(256), nullable = False)
+    courier         = database.Column(database.String(256))
+    contractAddress = database.Column(database.String(256), nullable = False)
 
     products = database.relationship('ProductOrder', back_populates = 'order')
 
-    def __init__(self, price, status, timestamp, customer):
+    def __init__(self, price, status, timestamp, customer, address):
         self.status = status
         self.price = price
         self.timestamp = timestamp
         self.customer = customer
         self.courier = None
+        self.contractAddress = address

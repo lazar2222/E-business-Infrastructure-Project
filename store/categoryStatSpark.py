@@ -13,7 +13,7 @@ product = spark.read.format('jdbc').option('driver', 'com.mysql.cj.jdbc.Driver')
 productOrder = spark.read.format('jdbc').option('driver', 'com.mysql.cj.jdbc.Driver').option('url', f'jdbc:mysql://{DATABASE_URL}:3306/store').option('dbtable', 'store.product_order').option('user', 'root').option('password', 'root').load()
 order = spark.read.format('jdbc').option('driver', 'com.mysql.cj.jdbc.Driver').option('url', f'jdbc:mysql://{DATABASE_URL}:3306/store').option('dbtable', 'store.order').option('user', 'root').option('password', 'root').load()
 
-categories = category.alias('a').join(productCategory, category['id'] == productCategory['categoryId']).join(product, product['id'] == productCategory['productId']).join(productOrder, product['id'] == productOrder['productId']).join(order, order['id'] == productOrder['orderId']).where(order['status'] == 'COMPLETE').groupBy(category['name']).agg(sum(productOrder['quantity']).alias('val')).alias('a').join(category.alias('b'), col("a.name") == col("b.name"), how = 'outer').orderBy(desc('val'), 'b.name').select('b.name')
+categories = category.alias('a').join(productCategory, category['id'] == productCategory['categoryId']).join(product, product['id'] == productCategory['productId']).join(productOrder, product['id'] == productOrder['productId']).join(order, order['id'] == productOrder['orderId']).where(order['status'] == 'COMPLETE').groupBy(category['name']).agg(sum(productOrder['quantity']).alias('val')).alias('a').join(category.alias('b'), col('a.name') == col('b.name'), how = 'outer').orderBy(desc('val'), 'b.name').select('b.name')
 
 jsonArray = categories.toJSON().collect()
 jsonArray = [s[8:-1] for s in jsonArray]

@@ -8,3 +8,4 @@ sqlalchemy
 sqlalchemy_utils
 PyMySQL
 pyspark
+web3
