@@ -7,17 +7,19 @@ contract Delivery
     address payable courier;
     uint value;
 
-    enum State {
+    enum State 
+    {
         CREATED,
         PAID,
         COURIER_ASSIGNED,
         DELIVERED
     }
     State state;
+    mapping(State => string) state_names;
 
     modifier onlyInState(State req)
     {
-        require(state == req, 'Invalid State.');
+        require(state == req, string.concat('Invalid state:', state_names[state]));
         _;
     }
 
@@ -40,6 +42,11 @@ contract Delivery
         courier = payable(address(0));
         value = _value;
         state = State.CREATED;
+
+        state_names[State.CREATED] = "CREATED";
+        state_names[State.PAID] = "PAID";
+        state_names[State.COURIER_ASSIGNED] = "COURIER_ASSIGNED";
+        state_names[State.DELIVERED] = "DELIVERED";
     }
 
     function pay() external payable onlyInState(State.CREATED) only(customer) exactly(value)
@@ -53,7 +60,7 @@ contract Delivery
         state = State.COURIER_ASSIGNED;
     }
 
-    function delivered() external onlyInState(State.COURIER_ASSIGNED)
+    function delivered() external onlyInState(State.COURIER_ASSIGNED) only(customer)
     {
         owner.transfer((value * 8) / 10);
         courier.transfer((value * 2) / 10);

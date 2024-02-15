@@ -10,6 +10,7 @@ from sqlalchemy import and_
 from web3 import Web3
 from web3 import HTTPProvider
 from web3 import Account
+from web3.exceptions import ContractLogicError
 
 from config import Config
 
@@ -91,7 +92,7 @@ def order():
         with open('Delivery.bin', 'r') as file:
             bin = file.read()
         contract = w3.eth.contract( bytecode = bin, abi = abi)
-        transaction = contract.constructor(address, int(price*100)).build_transaction({'from': Config.OWNER_PUBLIC, 'nonce': w3.eth.get_transaction_count (Config.OWNER_PUBLIC), 'gasPrice': 21000})
+        transaction = contract.constructor(address, int(price*100)).build_transaction({'from': Config.OWNER_PUBLIC, 'nonce': w3.eth.get_transaction_count(Config.OWNER_PUBLIC), 'gasPrice': 21000})
         signed = w3.eth.account.sign_transaction(transaction, Config.OWNER_PRIVATE)
         transaction = w3.eth.send_raw_transaction(signed.rawTransaction)
         receipt = w3.eth.wait_for_transaction_receipt(transaction)
@@ -134,18 +135,36 @@ def delivered():
         return Response(json.dumps({'msg': 'Missing Authorization Header'}), 401)
     
     if Config.USE_ETH:
-        if 'keys' not in request.json:
+        if 'keys' not in request.json or len(request.json['keys']) == 0:
             return errorMessage('Missing keys.')
         if 'passphrase' not in request.json or len(request.json['passphrase']) == 0:
             return errorMessage('Missing passphrase.')
         keys = request.json['keys']
+        keys = keys.replace('\'','"')
+        keys = json.loads(keys)
         passphrase = request.json['passphrase']
         address = w3.to_checksum_address(keys['address'])
-        private_key = Account.decrypt(keys, passphrase).hex()
+        try:
+            private_key = Account.decrypt(keys, passphrase).hex()
+        except:
+            return errorMessage('Invalid credentials.')
         with open('Delivery.abi', 'r') as file:
             abi = file.read()
         contract = w3.eth.contract(address = order.contractAddress, abi = abi)
-        contract.functions.delivered().transact({'from': address})
+        try:
+            transaction = contract.functions.delivered().build_transaction({'from': address, 'nonce': w3.eth.get_transaction_count(address), 'gasPrice': 21000})
+            signed = w3.eth.account.sign_transaction(transaction, private_key)
+            transaction = w3.eth.send_raw_transaction(signed.rawTransaction)
+            receipt = w3.eth.wait_for_transaction_receipt(transaction)
+        except ContractLogicError as er:
+            if 'Address' in str(er):
+                return errorMessage('Invalid customer account.')
+            if 'CREATED' in str(er):
+                return errorMessage('Transfer not complete.')
+            if 'PAID' in str(er):
+                return errorMessage('Delivery not complete.')
+            print(er)
+            return errorMessage('AAAAAAAAAAAAAAAAAAAAAAAA')
 
     order.status = 'COMPLETE'
     database.session.commit()
@@ -165,18 +184,37 @@ def pay():
         return Response(json.dumps({'msg': 'Missing Authorization Header'}), 401)
     
     if Config.USE_ETH:
-        if 'keys' not in request.json:
+        if 'keys' not in request.json or len(request.json['keys']) == 0:
             return errorMessage('Missing keys.')
         if 'passphrase' not in request.json or len(request.json['passphrase']) == 0:
             return errorMessage('Missing passphrase.')
         keys = request.json['keys']
+        keys = json.loads(keys)
         passphrase = request.json['passphrase']
         address = w3.to_checksum_address(keys['address'])
-        private_key = Account.decrypt(keys, passphrase).hex()
+        try:
+            private_key = Account.decrypt(keys, passphrase).hex()
+        except:
+            return errorMessage('Invalid credentials.')
         with open('Delivery.abi', 'r') as file:
             abi = file.read()
         contract = w3.eth.contract(address = order.contractAddress, abi = abi)
-        contract.functions.pay().transact({'from': address, 'value': int(order.price*100)})
+        try:
+            transaction = contract.functions.pay().build_transaction({'from': address, 'nonce': w3.eth.get_transaction_count(address), 'gasPrice': 21000, 'value': int(order.price*100)})
+            signed = w3.eth.account.sign_transaction(transaction, private_key)
+            transaction = w3.eth.send_raw_transaction(signed.rawTransaction)
+            receipt = w3.eth.wait_for_transaction_receipt(transaction)
+        except ContractLogicError as er:
+            if 'Value' in str(er):
+                return errorMessage('Insufficient funds.')
+            if 'PAID' in str(er):
+                return errorMessage('Transfer already complete.')
+            if 'COURIER_ASSIGNED' in str(er):
+                return errorMessage('Transfer already complete.')
+            if 'DELIVERED' in str(er):
+                return errorMessage('Transfer already complete.')
+            print(er)
+            return errorMessage('AAAAAAAAAAAAAAAAAAAAAAAA')
 
     return Response(None, 200)
 

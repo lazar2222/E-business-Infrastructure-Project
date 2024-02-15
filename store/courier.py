@@ -6,7 +6,7 @@ from flask_jwt_extended import JWTManager
 from flask_jwt_extended import get_jwt_identity
 from web3 import Web3
 from web3 import HTTPProvider
-from web3 import Account
+from web3.exceptions import ContractLogicError
 
 from config import Config
 
@@ -50,7 +50,17 @@ def pickUp():
         with open('Delivery.abi', 'r') as file:
             abi = file.read()
         contract = w3.eth.contract(address = order.contractAddress, abi = abi)
-        contract.functions.assignCourier(address).transact({'from': Config.OWNER_PUBLIC})
+        try:
+            transaction = contract.functions.assignCourier(address).build_transaction({'from': Config.OWNER_PUBLIC, 'nonce': w3.eth.get_transaction_count(Config.OWNER_PUBLIC), 'gasPrice': 21000})
+            signed = w3.eth.account.sign_transaction(transaction, Config.OWNER_PRIVATE)
+            transaction = w3.eth.send_raw_transaction(signed.rawTransaction)
+            receipt = w3.eth.wait_for_transaction_receipt(transaction)
+        except ContractLogicError as er:
+            if 'CREATED' in str(er):
+                return errorMessage('Transfer not complete.')
+            print(er)
+            return errorMessage('AAAAAAAAAAAAAAAAAAAAAAAA')
+        
 
     order.status = 'PENDING'
     order.courier = get_jwt_identity()
